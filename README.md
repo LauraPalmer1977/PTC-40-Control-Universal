@@ -1,3 +1,6 @@
+This is made with Claude code. Use with care.
+I am just the Project manager :-)
+
 # PTZ-Commander
 
 A web controller for **Datavideo PTC-140** PTZ cameras, plus **PTZOptics**, **Avkans** and other VISCA over IP cameras, for 1–8 cameras mixed freely.

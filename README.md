@@ -1,4 +1,4 @@
-# PTC-40 Control
+# PTZ-Commander
 
 A web controller for **Datavideo PTC-40** PTZ cameras, plus **PTZOptics**, **Avkans** and other VISCA over IP cameras, for 1–8 cameras mixed freely.
 It runs on your laptop, and you control the cameras from any browser: the same laptop, a tablet, or a phone on the same network.
@@ -32,8 +32,10 @@ The first time you start it, allow Node.js through the Windows Firewall (Private
 | **Focus** | AF / MF, variable-speed near/far rocker, one-push AF. |
 | **Presets** | 16 buttons per camera (4–64 in Settings). **Recall**, **Store** (arms for one store, then returns to Recall so you can't overwrite by accident), **Rename** (or right-click any preset). The last recalled preset is highlighted. Names are saved on the server, so every device sees them. |
 | **Exposure** | Mode (Auto / Manual / Shutter / Iris / Bright) with direct sliders for iris, shutter, gain, brightness and exposure compensation, plus backlight compensation and WDR. Only the sliders that apply to the current mode are shown. |
-| **Colour** | White balance (Auto / Indoor / Outdoor / One-push with trigger / ATW / Manual with red and blue gain). Colour correction: saturation (60–200 %) and hue. |
+| **Colour** | White balance (Auto / Indoor / Outdoor / One-push with trigger / ATW / Manual with red and blue gain / **VAR** colour temperature 2500–8000 K in 100 K steps, with 3200 / 4300 / 5600 / 6500 K buttons). Colour correction: saturation (60–200 %) and hue (±14°). |
 | **Picture** | Sharpness, noise reduction, gamma (0–4), defog, black & white, flip, mirror, freeze, power / standby. |
+| **Kelvin via the camera's web page** | For cameras that refuse Kelvin over VISCA (e.g. Datavideo PTC-40): paste the request their web page sends ("Copy as cURL" from Chrome DevTools) into the camera's settings. PTZ-Commander finds the Kelvin number in it (as 5600, 56 or a step index) and replays it with any value from a slider. Supports the camera's Basic or Digest web login. |
+| **Datavideo command set** | Datavideo cameras show only the image controls in Datavideo's control protocol (exposure mode, iris, shutter, gain, backlight, white balance, R/B gain, flip) plus VAR. The other controls can be turned on in **Settings → Extra image controls**. PTZOptics and Avkans cameras always show everything. |
 | **Image presets** | 8 built-in looks (Full auto, Daylight, Tungsten, Backlit, Low light, Vivid, Natural, B&W). **Save current** stores a camera's complete image setup under a name. Apply it to one camera, or to **all cameras**. **Copy this camera to all** matches every camera to the one you're on. |
 | **Read-back** | Every image value is read from the camera and kept in sync across all open browsers. Settings the camera rejects are greyed out. **Read camera** reloads everything. |
 | **vMix tally** | Connects to the vMix TCP API (port 8099). Each camera is linked to a vMix input (by input key, so reordering is safe). The tab shows PGM/PVW, and a red ON AIR bar appears above the controls. The camera's own tally light is driven over VISCA (command configurable). Optional confirmation before recalling a preset on the on-air camera. Optional auto-select of the camera that goes to Preview. |
@@ -136,6 +138,8 @@ server.js              HTTP server, REST API, motion watchdog
 lib/dvip.js            DVIP TCP connection (framing, queue, reconnect) + UDP discovery/network config
 lib/visca.js           VISCA command and inquiry builders
 lib/vmix.js            vMix TCP API client (tally subscription + input list)
+lib/curl.js            Parses "Copy as cURL" (bash and Windows cmd) for Kelvin via the camera's web page
+lib/httpreq.js         HTTP client with Basic/Digest login for camera web pages
 lib/video.js           Starts/configures go2rtc for live video (bin/go2rtc[.exe])
 lib/config.js          JSON config persistence
 public/                Web UI (index.html, app.css, app.js), no build step, no external libraries
@@ -148,6 +152,10 @@ autostart-windows.bat  Start at Windows log-in (run again to turn off)
 get-video-windows.bat  Downloads go2rtc v1.9.9 into bin/ to enable live video
 ```
 
-## About the PTC-40 command set
+## About the camera command sets
 
-The PTC-40 isn't named in Datavideo's DVIP guide (V1.92), but it uses the same DVIP transport as the PTC-140/150 listed there. Camera commands use the standard Sony VISCA set that Datavideo PTZ cameras implement. Every command is listed in `lib/visca.js` and is easy to adjust. If Datavideo publishes a PTC-40-specific VISCA list with different values, the ranges in `DIRECT` (and `PARAMS` in `public/app.js`) are the only places to change.
+- **Datavideo:** follows *The Datavideo PTZ and Block Camera Control Protocol* Rev 2.7 (Sep 2025, models BC-xxx, PTC-xxx, PTR-xxx). It documents exposure mode, iris, shutter, gain, backlight, white balance (Auto, Indoor, Outdoor, One-push, Manual), R/B gain, flip, and pan/tilt speeds 01–12h. PTZ-Commander caps Datavideo pan/tilt speed at 12h and hides undocumented image commands unless **Extra image controls** is on (`DATAVIDEO_DOCUMENTED` in `lib/visca.js`).
+- **VAR / colour temperature** is not in Datavideo's document. It uses the PTZOptics-style commands `8x 01 04 35 20 FF` (VAR mode) and `8x 01 04 20 0p 0q FF` (00h = 2500 K … 37h = 8000 K). If a Datavideo camera answers with an error, the Kelvin slider is greyed out.
+- **PTZOptics / Avkans:** full Sony-style set, pan speed up to 18h and tilt up to 14h.
+
+Every command is listed in `lib/visca.js`. Ranges live in `DIRECT` there and in `PARAMS` in `public/app.js`.
